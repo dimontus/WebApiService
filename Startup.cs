@@ -28,7 +28,7 @@ namespace WebApiService
             services.AddMvc().AddNewtonsoftJson();
             services.AddControllers().AddNewtonsoftJson(options =>
             {
-                //options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+                options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
                 options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
                 options.SerializerSettings.DefaultValueHandling = DefaultValueHandling.Ignore;
             });
@@ -43,11 +43,15 @@ namespace WebApiService
                 })
             };
 
-            var client = new HttpClient()
+            services.TryAddTransient<IImageClient>(_=>RestService.For<IImageClient>(new HttpClient()
                 {
                     BaseAddress = new Uri("https://localhost:5005")
-                };
-            services.TryAddTransient<IImageClient>(_=>RestService.For<IImageClient>(client, refitSettings));
+                }, refitSettings));
+
+            services.TryAddTransient<IPriceClient>(_=>RestService.For<IPriceClient>(new HttpClient()
+                {
+                    BaseAddress = new Uri("https://localhost:5003")
+                }, refitSettings));
 
             services.AddSwaggerGenNewtonsoftSupport();
             services.AddSwaggerGen();
