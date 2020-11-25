@@ -1,7 +1,10 @@
 using System;
 using System.Net.Http;
+using AuthenticationBase;
+using AutoMapper;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -25,6 +28,9 @@ namespace WebApiService
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddAppAuthentication(Configuration);
+            services.AddServiceClients(Configuration);
+
             services.AddMvc().AddNewtonsoftJson();
             services.AddControllers().AddNewtonsoftJson(options =>
             {
@@ -32,6 +38,10 @@ namespace WebApiService
                 options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
                 options.SerializerSettings.DefaultValueHandling = DefaultValueHandling.Ignore;
             });
+
+            services.AddAutoMapper(typeof(Startup));
+            services.AddEntityFrameworkNpgsql().AddDbContext<ProductContext>(options =>
+                options.UseNpgsql(Configuration.GetConnectionString("Product")));
 
             var refitSettings = new RefitSettings
             {
@@ -43,19 +53,25 @@ namespace WebApiService
                 })
             };
 
-            services.TryAddTransient<IImageClient>(_=>RestService.For<IImageClient>(new HttpClient()
-                {
-                    BaseAddress = new Uri("https://localhost:5005")
-                }, refitSettings));
+            //var clientHandler = new HttpClientHandler
+            //{
+            //    ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+            //};
 
-            services.TryAddTransient<IPriceClient>(_=>RestService.For<IPriceClient>(new HttpClient()
-                {
-                    BaseAddress = new Uri("https://localhost:5003")
-                }, refitSettings));
+            //services.TryAddTransient(_=>RestService.For<IImageClient>(new HttpClient(clientHandler)
+            //    {
+            //        BaseAddress = new Uri("https://host.docker.internal:8011"),
+            //    }, refitSettings));
+
+            //services.TryAddTransient(_=>RestService.For<IPriceClient>(new HttpClient(clientHandler)
+            //    {
+            //        BaseAddress = new Uri("https://host.docker.internal:8001")
+            //    }, refitSettings));
 
             services.AddSwaggerGenNewtonsoftSupport();
             services.AddSwaggerGen();
             services.AddControllers();
+            services.AddForwardedHeadersConfiguration();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -77,6 +93,7 @@ namespace WebApiService
 
             app.UseRouting();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
